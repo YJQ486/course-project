@@ -52,20 +52,20 @@
 
 ## 📁 目录结构
 SmartWatch_STM32
-├── Hardware/ # 硬件设计资料
-│ ├── Schematic/ # 电路原理图与接线图
-│ └── BOM.md # 完整物料清单
-├── Firmware/ # STM32 固件源码
-│ ├── Core/ # 业务逻辑与任务实现
-│ ├── Drivers/ # 外设驱动（OLED、MPU6050、编码器等）
-│ ├── FreeRTOS/ # FreeRTOS 内核移植文件
-│ └── MDK-ARM/ # Keil MDK 工程文件
-├── Host/ # 上位机源码
-│ └── Bluetooth_GUI/ # 蓝牙图形化上位机（Python 实现）
-├── Docs/ # 项目文档
-│ ├── 项目计划书.md
-│ ├── 系统设计文档.md
-│ └── 中期检查报告.md
+├── Hardware/          # 硬件设计资料
+│   ├── Schematic/     # 电路原理图与接线图
+│   └── BOM.md         # 完整物料清单
+├── Firmware/          # STM32 固件源码
+│   ├── Core/          # 业务逻辑与任务实现
+│   ├── Drivers/       # 外设驱动（OLED、MPU6050、编码器等）
+│   ├── FreeRTOS/      # FreeRTOS 内核移植文件
+│   └── MDK-ARM/       # Keil MDK 工程文件
+├── Host/              # 上位机源码
+│   └── Bluetooth_GUI/ # 蓝牙图形化上位机（Python 实现）
+├── Docs/              # 项目文档
+│   ├── 项目计划书.md
+│   ├── 系统设计文档.md
+│   └── 中期检查报告.md
 └── README.md
 
 ## 🚀 快速开始
