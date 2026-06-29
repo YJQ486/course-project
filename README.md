@@ -56,30 +56,24 @@
 GitHub 仓库根目录采用模块化拓扑进行组织，具体架构如下：
 
 ```text
-├── 1_Watch_Firmware/          # STM32 纯 C 语言手环端工程源码
-│   ├── User_Drivers/          # 团队独立编写的模块化驱动与核心算法
-│   │   ├── Menu/              # 扩展1：EC11编码器多级结构体菜单状态机驱动
-│   │   │   ├── menu.c
-│   │   │   └── menu.h
-│   │   └── Algorithm/         # 扩展4：MPU6050加速度自适应软件滤波计步算法
-│   │       ├── step_filter.c
-│   │       └── step_filter.h
-│   └── main.c                 # 主程序入口与任务调度调度中心
-├── 2_Host_App/                # 扩展2：图形化蓝牙上位机客户端源码（基于 Python PyQt5）
-├── 3_Docs/                    # 课程设计全周期控制技术文档
-│   ├── 01_项目计划书.docx     # 6月30日提交档
-│   ├── 02_系统设计文档.docx   # 7月2日提交档
-│   └── 03_中期检查报告.docx   # 7月6日提交档
-└── README.md                  # 本说明文件
+SmartWatch_STM32
+├── Hardware/    # 硬件资料（原理图、BOM清单）
+├── Firmware/    # STM32CubeIDE 固件工程
+│   ├── Core/    # 业务代码与 FreeRTOS 任务
+│   ├── Drivers/ # HAL 库与外设驱动
+│   └── FreeRTOS/# 操作系统内核
+├── Host/        # 蓝牙上位机（Python）
+├── Docs/        # 课程交付文档
+└── README.md
 ```
 ## 🚀 快速开始
 ### 1. 硬件搭建
 参考 `Hardware/Schematic/` 目录下的原理图，在面包板上完成所有模块的接线，确认电源正负极无误后再上电测试。
 
 ### 2. 固件编译与烧录
-- 开发环境：Keil MDK 5 + STM32CubeMX
-- 使用 Keil 打开 `Firmware/MDK-ARM/SmartWatch.uvprojx` 工程
-- 编译工程后，通过 ST-Link 烧录至 STM32F103C8T6 最小系统板
+- 开发环境：**STM32CubeIDE 1.14+**（内置 STM32CubeMX 配置工具）
+- 打开 STM32CubeIDE，通过 `File → Open Projects from File System` 导入 `Firmware` 目录下的工程
+- 点击工具栏编译按钮生成固件，通过 ST-Link 调试器烧录至 STM32F103C8T6 最小系统板
 
 ### 3. 上位机使用
 - 安装 Python 依赖：`pip install pyserial pyqt5`
