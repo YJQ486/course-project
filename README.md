@@ -51,23 +51,26 @@
 - 多级结构体菜单状态机，支持多层页面嵌套跳转与参数设置
 
 ## 📁 目录结构
+## 📂 仓库目录结构
+
+GitHub 仓库根目录采用模块化拓扑进行组织，具体架构如下：
+
 ```text
-SmartWatch_STM32
-├── Hardware/          # 硬件设计资料
-│   ├── Schematic/     # 电路原理图与接线图
-│   └── BOM.md         # 完整物料清单
-├── Firmware/          # STM32 固件源码
-│   ├── Core/          # 业务逻辑与任务实现
-│   ├── Drivers/       # 外设驱动（OLED、MPU6050、编码器等）
-│   ├── FreeRTOS/      # FreeRTOS 内核移植文件
-│   └── MDK-ARM/       # Keil MDK 工程文件
-├── Host/              # 上位机源码
-│   └── Bluetooth_GUI/ # 蓝牙图形化上位机（Python 实现）
-├── Docs/              # 项目文档
-│   ├── 项目计划书.md
-│   ├── 系统设计文档.md
-│   └── 中期检查报告.md
-└── README.md
+├── 1_Watch_Firmware/          # STM32 纯 C 语言手环端工程源码
+│   ├── User_Drivers/          # 团队独立编写的模块化驱动与核心算法
+│   │   ├── Menu/              # 扩展1：EC11编码器多级结构体菜单状态机驱动
+│   │   │   ├── menu.c
+│   │   │   └── menu.h
+│   │   └── Algorithm/         # 扩展4：MPU6050加速度自适应软件滤波计步算法
+│   │       ├── step_filter.c
+│   │       └── step_filter.h
+│   └── main.c                 # 主程序入口与任务调度调度中心
+├── 2_Host_App/                # 扩展2：图形化蓝牙上位机客户端源码（基于 Python PyQt5）
+├── 3_Docs/                    # 课程设计全周期控制技术文档
+│   ├── 01_项目计划书.docx     # 6月30日提交档
+│   ├── 02_系统设计文档.docx   # 7月2日提交档
+│   └── 03_中期检查报告.docx   # 7月6日提交档
+└── README.md                  # 本说明文件
 ```
 ## 🚀 快速开始
 ### 1. 硬件搭建
