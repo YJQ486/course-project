@@ -4,6 +4,31 @@
 > `Firmware/App/` 下的源码加入工程即可（集成步骤见《集成说明.md》）。
 > 引脚 User Label 必须与 `App/Inc/app_config.h` 中的宏一致。
 
+## 0. 快速开始：直接用 `SmartWatch.ioc`（推荐）
+
+本目录已提供预配置工程 **`Firmware/SmartWatch.ioc`**，用 **STM32CubeMX 6.11+**（或
+STM32CubeIDE 内置 CubeMX）打开即可，省去大半手动点击。
+
+> ⚠️ 该 `.ioc` 为预填模板，CubeMX 打开时会重算时钟树派生值与 NVIC 优先级。
+> **打开后请逐项核对以下 9 点，确认无误再 Generate Code：**
+
+1. **Clock Configuration 页**：HSE 8MHz → PLL ×9 → **SYSCLK = 72MHz**、APB1 = 36MHz；
+   若顶部提示时钟冲突，点 **“Resolve Clock Issues”** 自动修正。
+2. **System Core → RCC**：High Speed Clock (HSE) = *Crystal/Ceramic Resonator*，
+   Low Speed Clock (LSE) = *Crystal/Ceramic Resonator*。
+3. **Timers → RTC**：已勾 *Activate Clock Source* + *Activate Calendar*，时钟源 = LSE。
+4. **Middleware → FREERTOS**：已启用；Interface = CMSIS_V2（本项目代码用原生 API，V1 亦可）。
+5. **System Core → SYS → Timebase Source = TIM4**（务必不是 SysTick）。
+6. **Connectivity → USART2**：Asynchronous，**9600** 8-N-1；NVIC 勾 USART2 global interrupt。
+7. **Timers → TIM2**：Combined Channels = **Encoder Mode**（PA0/PA1）。
+8. **GPIO/NVIC**：PA4 = EXTI4 上升沿、PB12 = EXTI12 下降沿+上拉，二者中断已使能；
+   PA8 = GPIO 输出（PWR_HOLD）；PB10/PB11 = GPIO 输出（软件 I2C）。
+9. 全部确认 → **Generate Code**，再按《集成说明.md》接入 `App/` 源码。
+
+> 若 CubeMX 打开 `.ioc` 报错、或某外设未被识别，**按下方第 1～9 节手动配置**（完全等效的兜底方案）。
+
+---
+
 ## 1. RCC / 时钟树
 - **RCC → High Speed Clock (HSE)**：Crystal/Ceramic Resonator（板载 8MHz 晶振）
 - **RCC → Low Speed Clock (LSE)**：Crystal/Ceramic Resonator（板载 **32.768kHz** 晶振，供 RTC）
