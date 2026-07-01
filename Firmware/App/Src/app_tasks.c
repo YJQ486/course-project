@@ -40,7 +40,31 @@ static volatile uint32_t g_last_activity_ms;
 static uint8_t           s_uart_rx;      /* UART 单字节接收缓冲 */
 static uint16_t          s_last_day;
 
+/* 记录最近一次落盘的步数，避免无变化时反复擦写 Flash（延长寿命） */
+static uint32_t          s_saved_total = 0xFFFFFFFFu;
+static uint32_t          s_saved_today = 0xFFFFFFFFu;
+
 static inline void mark_activity(void) { g_last_activity_ms = HAL_GetTick(); }
+
+/* 若步数较上次落盘有变化则写入 Flash；force=1 用于熄屏/休眠前强制落盘。
+ * 仅在“有变化”时擦写，把 F1 内部 Flash 的擦写次数从“每 30s 一次”降到
+ * “仅步数变动时”，避免几天就写穿末页（擦写寿命约 1 万次）。 */
+static void persist_steps(uint8_t force)
+{
+    uint32_t total = Pedometer_GetTotal();
+    uint32_t today = Pedometer_GetToday();
+    if (!force && total == s_saved_total && today == s_saved_today) {
+        return;                          /* 无变化，跳过擦写 */
+    }
+    StepStore_t st = {0};
+    st.total_steps = total;
+    st.today_steps = today;
+    st.day_index   = s_last_day;
+    if (Flash_SaveSteps(&st) == 0) {     /* 0=成功 */
+        s_saved_total = total;
+        s_saved_today = today;
+    }
+}
 
 /* ====================== 初始化 ====================== */
 void App_Init(void)
@@ -61,14 +85,17 @@ void App_Init(void)
         Pedometer_Init(0, 0);
     }
     s_last_day = RTC_GetDayIndex();
+    /* 以载入值作为落盘基线，避免开机后立刻重写一遍未变化的 Flash */
+    s_saved_total = Pedometer_GetTotal();
+    s_saved_today = Pedometer_GetToday();
 
     Menu_Init();
     memset(&g_ui, 0, sizeof(g_ui));
     g_ui.total_steps = Pedometer_GetTotal();
     g_ui.today_steps = Pedometer_GetToday();
 
-    /* 启动 UART 单字节中断接收 */
-    HAL_UART_Receive_IT(&huart2, &s_uart_rx, 1);
+    /* 注意：UART 中断接收在 App_CreateTasks() 里、信号量创建之后才启动，
+     * 避免开机瞬间蓝牙来字节时对尚未创建的 s_sem_uart 做 GiveFromISR。 */
 
     mark_activity();
 }
@@ -76,6 +103,7 @@ void App_Init(void)
 /* ====================== 低功耗 ====================== */
 static void enter_stop_mode(void)
 {
+    persist_steps(1);            /* 休眠前强制落盘，防止睡眠期间断电丢步数 */
     OLED_DisplayOff();
     HAL_SuspendTick();
     /* 进入 STOP；RTC(LSE) 仍走时，仅 EXTI（按键/MPU抬腕）可唤醒 */
@@ -121,14 +149,11 @@ static void Task_Sensor(void *arg)
                 xSemaphoreGive(s_mtx);
             }
 
-            /* 低频落盘：约每 30s 写一次 Flash（1500 * 20ms） */
-            if (++save_cnt >= 1500) {
+            /* 低频落盘：约每 60s 检查一次（3000 * 20ms），且仅在步数
+             * 变化时才真正擦写 Flash，兼顾掉电保存与 Flash 寿命。 */
+            if (++save_cnt >= 3000) {
                 save_cnt = 0;
-                StepStore_t st = {0};
-                st.total_steps = Pedometer_GetTotal();
-                st.today_steps = Pedometer_GetToday();
-                st.day_index   = s_last_day;
-                Flash_SaveSteps(&st);
+                persist_steps(0);
             }
         }
         vTaskDelayUntil(&last, pdMS_TO_TICKS(PED_SAMPLE_MS));
@@ -190,6 +215,9 @@ void App_CreateTasks(void)
 {
     s_mtx      = xSemaphoreCreateMutex();
     s_sem_uart = xSemaphoreCreateBinary();
+
+    /* 信号量已就绪，再启动 UART 单字节中断接收（避免竞态） */
+    HAL_UART_Receive_IT(&huart2, &s_uart_rx, 1);
 
     xTaskCreate(Task_Power,  "Power",  STK_POWER,  NULL, PRIO_POWER,  NULL);
     xTaskCreate(Task_Sensor, "Sensor", STK_SENSOR, NULL, PRIO_SENSOR, NULL);
