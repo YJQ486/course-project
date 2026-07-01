@@ -5,6 +5,7 @@
 #include "bsp_oled.h"
 #include "bsp_soft_i2c.h"
 #include "oled_font.h"
+#include "app_config.h"   /* 为 HAL_Delay 等 HAL 声明 */
 #include <string.h>
 
 /* 本地显存：8 页 x 128 列 */
