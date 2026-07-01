@@ -12,6 +12,12 @@ Release/
 *.bin
 *.list
 
+# CMake / Ninja 构建产物
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
 # 编辑器
 .vscode/
 .DS_Store

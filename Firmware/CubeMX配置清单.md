@@ -81,6 +81,7 @@ STM32CubeIDE 内置 CubeMX）打开即可，省去大半手动点击。
 - 唤醒后调用 CubeMX 生成的 `SystemClock_Config()` 重配时钟（已在 app_tasks.c 中处理）
 
 ## 9. 生成代码
-- Project Manager → Toolchain：**STM32CubeIDE**
+- Project Manager → Project → **Toolchain / IDE = CMake**（本项目采用 VSCode + CMake + arm-gcc）
+- Project Location 指向 `course-project/Firmware`，Project Name = `SmartWatch`（.ioc 已设 UnderRoot，生成物就地落在 Firmware/）
 - 勾选 “Generate peripheral initialization as a pair of .c/.h files”
-- 生成后按《集成说明.md》接入 `App/` 源码
+- 生成后按《集成说明.md》第七节把 `App/` 加入 CMake 工程
