@@ -23,7 +23,10 @@ STM32CubeIDE 内置 CubeMX）打开即可，省去大半手动点击。
 7. **Timers → TIM2**：Combined Channels = **Encoder Mode**（PA0/PA1）。
 8. **GPIO/NVIC**：PA4 = EXTI4 上升沿、PB12 = EXTI12 下降沿+上拉，二者中断已使能；
    PA8 = GPIO 输出（PWR_HOLD）；PB10/PB11 = GPIO 输出（软件 I2C）。
-9. 全部确认 → **Generate Code**，再按《集成说明.md》接入 `App/` 源码。
+9. **System Core → SYS → Debug = `Serial Wire`**（务必设置）：保留 PA13/PA14 作为
+   SWDIO/SWCLK 烧录调试口。若设为 Disable，一旦后续有外设占用这两脚，CubeMX 会
+   释放 SWD 导致 ST-Link 连不上（需 connect-under-reset 或 BOOT0 救砖）。
+10. 全部确认 → **Generate Code**，再按《集成说明.md》接入 `App/` 源码。
 
 > 若 CubeMX 打开 `.ioc` 报错、或某外设未被识别，**按下方第 1～9 节手动配置**（完全等效的兜底方案）。
 
@@ -68,6 +71,8 @@ STM32CubeIDE 内置 CubeMX）打开即可，省去大半手动点击。
 
 - **NVIC**：勾选 **EXTI line4 interrupt**（PA4）与 **EXTI line[15:10] interrupt**（PB12）
 - EXTI 同时作为 STOP 模式的唤醒源
+- **SYS → Debug = `Serial Wire`（重要）**：保留 PA13/PA14 为 SWDIO/SWCLK，确保
+  ST-Link 始终能连接烧录/调试，避免误释放 SWD 引脚。本项目未占用 PA13/PA14。
 
 ## 7. FreeRTOS（中间件）
 - **Middleware → FREERTOS**：Interface 选 **CMSIS_V2**（或 V1）
@@ -81,6 +86,7 @@ STM32CubeIDE 内置 CubeMX）打开即可，省去大半手动点击。
 - 唤醒后调用 CubeMX 生成的 `SystemClock_Config()` 重配时钟（已在 app_tasks.c 中处理）
 
 ## 9. 生成代码
-- Project Manager → Toolchain：**STM32CubeIDE**
+- Project Manager → Project → **Toolchain / IDE = CMake**（本项目采用 VSCode + CMake + arm-gcc）
+- Project Location 指向 `course-project/Firmware`，Project Name = `SmartWatch`（.ioc 已设 UnderRoot，生成物就地落在 Firmware/）
 - 勾选 “Generate peripheral initialization as a pair of .c/.h files”
-- 生成后按《集成说明.md》接入 `App/` 源码
+- 生成后按《集成说明.md》第七节把 `App/` 加入 CMake 工程

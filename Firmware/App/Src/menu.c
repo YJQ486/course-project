@@ -90,13 +90,21 @@ void Menu_Render(const UiData_t *ui)
         break;
 
     case PAGE_SENSOR:
-        OLED_ShowString(0, 0, "== SENSOR ==");
-        snprintf(line, sizeof(line), "AX:%6d", ui->sensor.ax);
+        /* 左列加速度 ACC、右列陀螺仪 GYRO（MPU6050 六轴，满足基本要求） */
+        OLED_ShowString(0, 0,  "ACC");
+        OLED_ShowString(0, 66, "GYRO");
+        snprintf(line, sizeof(line), "X%6d", ui->sensor.ax);
         OLED_ShowString(2, 0, line);
-        snprintf(line, sizeof(line), "AY:%6d", ui->sensor.ay);
+        snprintf(line, sizeof(line), "X%6d", ui->sensor.gx);
+        OLED_ShowString(2, 66, line);
+        snprintf(line, sizeof(line), "Y%6d", ui->sensor.ay);
         OLED_ShowString(4, 0, line);
-        snprintf(line, sizeof(line), "AZ:%6d", ui->sensor.az);
+        snprintf(line, sizeof(line), "Y%6d", ui->sensor.gy);
+        OLED_ShowString(4, 66, line);
+        snprintf(line, sizeof(line), "Z%6d", ui->sensor.az);
         OLED_ShowString(6, 0, line);
+        snprintf(line, sizeof(line), "Z%6d", ui->sensor.gz);
+        OLED_ShowString(6, 66, line);
         break;
 
     case PAGE_SETTING:

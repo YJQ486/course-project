@@ -71,15 +71,20 @@ SmartWatch_STM32
 参考 `Hardware/Schematic/` 目录下的原理图，在面包板上完成所有模块的接线，确认电源正负极无误后再上电测试。
 
 ### 2. 固件编译与烧录
-- 开发环境：**STM32CubeIDE 1.14+**（内置 STM32CubeMX 配置工具）
-- 第一步：按 [`Firmware/CubeMX配置清单.md`](Firmware/CubeMX配置清单.md) 在 CubeMX 中配置时钟/RTC/I2C/USART/TIM/FreeRTOS 并生成 HAL 工程
-- 第二步：按 [`Firmware/集成说明.md`](Firmware/集成说明.md) 把 `Firmware/App/` 下的应用层源码（BSP 驱动、计步算法、菜单、协议、四大任务）接入工程
-- 点击工具栏编译按钮生成固件，通过 ST-Link 调试器烧录至 STM32F103C8T6 最小系统板
+- 工具链：**VSCode + CMake + Ninja + arm-none-eabi-gcc**（工程已随仓库提供 `CMakePresets.json` 与工具链文件 `Firmware/cmake/gcc-arm-none-eabi.cmake`）
+- 外设配置由 `Firmware/SmartWatch.ioc`（CubeMX 工程）生成；如需改引脚可参考 [`Firmware/CubeMX配置清单.md`](Firmware/CubeMX配置清单.md)，应用层接入方式见 [`Firmware/集成说明.md`](Firmware/集成说明.md)
+- 编译（在 `Firmware/` 目录下）：
+  ```bash
+  cmake --preset Debug
+  cmake --build --preset Debug
+  ```
+  生成的固件为 `Firmware/build/Debug/SmartWatch.elf`
+- 通过 ST-Link 调试器将 `.elf` 烧录至 STM32F103C8T6 最小系统板
 
 ### 3. 上位机使用
-- 安装 Python 依赖：`pip install pyserial pyqt5`
-- 进入 `Host/Bluetooth_GUI/` 目录，运行 `python main.py`
-- 电脑配对蓝牙模块，连接成功后即可实时查看手表时间、步数与传感器数据
+- 安装 Python 依赖：`pip install -r Host/requirements.txt`（或 `pip install pyserial pyqt5`）
+- 进入 `Host/` 目录，运行 `python watch_gui.py`
+- 电脑配对蓝牙模块（JDY-31，出厂波特率 9600）后会生成一个串口，在下拉框选择该串口并连接，即可实时查看手表时间、步数与加速度数据，并可校时 / 请求同步
 
 ## 📅 开发进度
 - ✅ **阶段一（6.29 - 6.30）**：选题确认、物料采购、项目计划书提交
