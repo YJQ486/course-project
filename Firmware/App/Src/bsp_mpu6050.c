@@ -18,6 +18,7 @@ extern I2C_HandleTypeDef hi2c1;     /* CubeMX 生成 */
 #define REG_MOT_DUR         0x20
 #define REG_INT_PIN_CFG     0x37
 #define REG_INT_ENABLE      0x38
+#define REG_INT_STATUS      0x3A
 #define REG_ACCEL_XOUT_H    0x3B
 #define REG_MOT_DETECT_CTRL 0x69
 #define REG_PWR_MGMT_1      0x6B
@@ -72,8 +73,19 @@ uint8_t MPU6050_EnableMotionInt(uint8_t thr, uint8_t dur)
     mpu_write(REG_MOT_DETECT_CTRL, 0x15);   /* 运动检测延时配置 */
     mpu_write(REG_MOT_THR, thr);            /* 运动阈值 */
     mpu_write(REG_MOT_DUR, dur);            /* 运动持续时间 */
-    /* INT 推挽、高有效、读寄存器清中断；低功耗时由 EXTI 唤醒 */
-    mpu_write(REG_INT_PIN_CFG, 0x20);
+    /* INT 推挽、高有效、**非锁存脉冲模式**(bit5=0)：
+     * INT 产生一个 ~50us 高脉冲后自动复位，STM32 EXTI 上升沿即可捕获并唤醒。
+     * 不能用锁存(0x20)：锁存后 INT 一直保持高，若不读 0x3A 清除，
+     * 进 STOP 时 PA4 已卡在高电平，抬腕再无新上升沿 → 唤不醒。 */
+    mpu_write(REG_INT_PIN_CFG, 0x00);
     mpu_write(REG_INT_ENABLE, 0x40);        /* 使能 Motion 中断 */
     return 0;
+}
+
+/* 读 INT_STATUS(0x3A) 会清除运动中断标志；进 STOP 前调用以保证 INT 线为低 */
+uint8_t MPU6050_ReadIntStatus(void)
+{
+    uint8_t st = 0;
+    mpu_read(REG_INT_STATUS, &st, 1);
+    return st;
 }

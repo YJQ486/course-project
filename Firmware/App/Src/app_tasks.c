@@ -106,6 +106,16 @@ static void enter_stop_mode(void)
     persist_steps(1);            /* 休眠前强制落盘，防止睡眠期间断电丢步数 */
     OLED_DisplayOff();
     HAL_SuspendTick();
+
+    /* 清残留中断，带着“干净”的状态进 STOP：
+     * 1) 读 MPU INT_STATUS 复位运动中断，保证 PA4 为低（否则抬腕无新上升沿）；
+     * 2) 清 EXTI 挂起位与 NVIC 挂起，否则旧标志会让 WFI 立刻返回、根本睡不下去。 */
+    MPU6050_ReadIntStatus();
+    __HAL_GPIO_EXTI_CLEAR_IT(MPU_INT_PIN);
+    __HAL_GPIO_EXTI_CLEAR_IT(ENC_KEY_PIN);
+    NVIC_ClearPendingIRQ(EXTI4_IRQn);
+    NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+
     /* 进入 STOP；RTC(LSE) 仍走时，仅 EXTI（按键/MPU抬腕）可唤醒 */
     HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
     /* —— 被唤醒 —— STOP 后时钟回到 HSI，需重配 */

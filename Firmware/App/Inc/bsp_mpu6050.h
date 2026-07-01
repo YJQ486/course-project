@@ -22,4 +22,7 @@ uint8_t MPU6050_Read(MPU_Data_t *out);
  * thr: 运动阈值(LSB,越小越灵敏)，dur: 持续时间(ms 量级) */
 uint8_t MPU6050_EnableMotionInt(uint8_t thr, uint8_t dur);
 
+/* 读 INT_STATUS 清运动中断标志，返回状态字（进 STOP 前调用） */
+uint8_t MPU6050_ReadIntStatus(void);
+
 #endif /* BSP_MPU6050_H */
