@@ -95,7 +95,18 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  /* 一键开机软自锁：必须在 SystemClock_Config 之前把 PA8 拉高维持供电。
+   * LSE 起振等待可长达数秒，若等到 MX_GPIO_Init 才拉高，用户松开电源键
+   * 的瞬间系统就掉电（此前全工程无任何地方拉高 PA8，属致命遗漏）。 */
+  {
+    GPIO_InitTypeDef pwr_hold = {0};
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    HAL_GPIO_WritePin(PWR_HOLD_GPIO_Port, PWR_HOLD_Pin, GPIO_PIN_SET);
+    pwr_hold.Pin   = PWR_HOLD_Pin;
+    pwr_hold.Mode  = GPIO_MODE_OUTPUT_PP;
+    pwr_hold.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(PWR_HOLD_GPIO_Port, &pwr_hold);
+  }
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -412,12 +423,12 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOB, OLED_SCL_Pin|OLED_SDA_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(PWR_HOLD_GPIO_Port, PWR_HOLD_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(PWR_HOLD_GPIO_Port, PWR_HOLD_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : MPU_INT_Pin */
   GPIO_InitStruct.Pin = MPU_INT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(MPU_INT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : OLED_SCL_Pin OLED_SDA_Pin */

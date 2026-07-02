@@ -69,6 +69,11 @@ uint8_t MPU6050_EnableMotionInt(uint8_t thr, uint8_t dur)
 {
     /* 参考 MPU6050 运动检测中断标准配置流程 */
     mpu_write(REG_PWR_MGMT_1, 0x00);
+    /* DLPF 必须放宽：Init 里为计步配的 5Hz 低通(0x06)与下面 5Hz 高通叠加后
+     * 通带≈0，抬腕/晃动信号全被滤掉，运动中断永远不触发（抬腕唤醒失效的根因）。
+     * 标准运动中断配方用 DLPF=0(260Hz)，这里取 0x03(44Hz) 折中：中断可触发，
+     * 计步数据靠软件 8 点滑动平均平滑，不受影响。 */
+    mpu_write(REG_CONFIG, 0x03);
     mpu_write(REG_ACCEL_CONFIG, 0x01);      /* 加速度高通 5Hz */
     mpu_write(REG_MOT_DETECT_CTRL, 0x15);   /* 运动检测延时配置 */
     mpu_write(REG_MOT_THR, thr);            /* 运动阈值 */
