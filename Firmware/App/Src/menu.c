@@ -8,6 +8,7 @@
  */
 #include "menu.h"
 #include "bsp_oled.h"
+#include "app_tasks.h"      /* g_mpu_int_count：抬腕中断计数（标定用） */
 #include <stdio.h>
 
 static MenuPage_t s_page;
@@ -105,6 +106,9 @@ void Menu_Render(const UiData_t *ui)
         OLED_ShowString(6, 0, line);
         snprintf(line, sizeof(line), "Z%6d", ui->sensor.gz);
         OLED_ShowString(6, 66, line);
+        /* 运动中断计数：晃动模块该数应增长，是抬腕唤醒链路的自检/标定入口 */
+        snprintf(line, sizeof(line), "INT:%lu", (unsigned long)g_mpu_int_count);
+        OLED_ShowString(7, 0, line);
         break;
 
     case PAGE_SETTING:
