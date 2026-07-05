@@ -20,6 +20,7 @@ extern I2C_HandleTypeDef hi2c1;     /* CubeMX 生成 */
 #define REG_INT_ENABLE      0x38
 #define REG_INT_STATUS      0x3A
 #define REG_ACCEL_XOUT_H    0x3B
+#define REG_SIGNAL_PATH_RESET 0x68
 #define REG_MOT_DETECT_CTRL 0x69
 #define REG_PWR_MGMT_1      0x6B
 #define REG_WHO_AM_I        0x75
@@ -67,23 +68,30 @@ uint8_t MPU6050_Read(MPU_Data_t *out)
 
 uint8_t MPU6050_EnableMotionInt(uint8_t thr, uint8_t dur)
 {
-    /* 参考 MPU6050 运动检测中断标准配置流程 */
-    mpu_write(REG_PWR_MGMT_1, 0x00);
-    /* DLPF 必须放宽：Init 里为计步配的 5Hz 低通(0x06)与下面 5Hz 高通叠加后
-     * 通带≈0，抬腕/晃动信号全被滤掉，运动中断永远不触发（抬腕唤醒失效的根因）。
-     * 标准运动中断配方用 DLPF=0(260Hz)，这里取 0x03(44Hz) 折中：中断可触发，
-     * 计步数据靠软件 8 点滑动平均平滑，不受影响。 */
+    /* MPU6050 wake-on-motion 标准时序（eluke.nl / kriswiner 等多方验证）。
+     * 此前“抬腕怎么动都唤不醒、按键才行”的两个真正根因（EXTI/STOP 链路本身
+     * 没问题——按键能唤醒即证明——坏在 MPU 根本不产生 INT 脉冲）：
+     *
+     *  ① 缺信号通路复位：不写 SIGNAL_PATH_RESET，运动检测前置的高通滤波器
+     *     残留旧状态，阈值比较器不翻转 → INT 从不产生。这是本时序的必备首步。
+     *  ② INT 用了 ~50us 脉冲模式：脉冲太短，经杜邦线/输入电容后 STM32 EXTI
+     *     常常抓不到上升沿。改锁存模式：INT 触发后保持高电平直到读 0x3A 清除，
+     *     给 EXTI 一个稳定、明确的电平+边沿，唤醒可靠得多。
+     *     （代价是 INT 高电平会保持，故进 STOP 前、唤醒后、以及清醒时
+     *      Task_Sensor 每帧都读一次 0x3A 重新“布防”，见 app_tasks.c。） */
+    mpu_write(REG_PWR_MGMT_1, 0x00);          /* 唤醒、内部时钟 */
+    mpu_write(REG_SIGNAL_PATH_RESET, 0x07);   /* ①复位加速度/陀螺/温度信号通路 */
+    HAL_Delay(2);
+    /* DLPF 放宽到 44Hz：Init 为计步配的 5Hz 低通会把抬腕动作能量滤掉；
+     * 计步侧靠软件 8 点滑动平均平滑，不依赖硬件重低通。 */
     mpu_write(REG_CONFIG, 0x03);
-    mpu_write(REG_ACCEL_CONFIG, 0x01);      /* 加速度高通 5Hz */
-    mpu_write(REG_MOT_DETECT_CTRL, 0x15);   /* 运动检测延时配置 */
-    mpu_write(REG_MOT_THR, thr);            /* 运动阈值 */
-    mpu_write(REG_MOT_DUR, dur);            /* 运动持续时间 */
-    /* INT 推挽、高有效、**非锁存脉冲模式**(bit5=0)：
-     * INT 产生一个 ~50us 高脉冲后自动复位，STM32 EXTI 上升沿即可捕获并唤醒。
-     * 不能用锁存(0x20)：锁存后 INT 一直保持高，若不读 0x3A 清除，
-     * 进 STOP 时 PA4 已卡在高电平，抬腕再无新上升沿 → 唤不醒。 */
-    mpu_write(REG_INT_PIN_CFG, 0x00);
-    mpu_write(REG_INT_ENABLE, 0x40);        /* 使能 Motion 中断 */
+    mpu_write(REG_ACCEL_CONFIG, 0x01);        /* ±2g，加速度高通 5Hz（运动检测用） */
+    mpu_write(REG_MOT_THR, thr);              /* 运动阈值（1 LSB≈1mg） */
+    mpu_write(REG_MOT_DUR, dur);              /* 运动持续（1 LSB=1ms） */
+    mpu_write(REG_MOT_DETECT_CTRL, 0x15);     /* 加速度上电延时 + 运动计数器递减 */
+    mpu_write(REG_INT_PIN_CFG, 0x20);         /* ②锁存、高有效、推挽；读 0x3A 清除 */
+    mpu_write(REG_INT_ENABLE, 0x40);          /* 使能 Motion 中断 */
+    MPU6050_ReadIntStatus();                  /* 清一次，从干净状态起步 */
     return 0;
 }
 

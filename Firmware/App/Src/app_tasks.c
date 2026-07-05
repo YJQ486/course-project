@@ -76,9 +76,9 @@ void App_Init(void)
     OLED_Display();
 
     MPU6050_Init();
-    /* 抬腕唤醒：阈值 10(约 20mg)/持续 1ms，先取灵敏值，再用 SENSOR 页的
-     * INT 计数现场标定（误触发多就调大 thr，抬腕不触发就调小） */
-    MPU6050_EnableMotionInt(10, 1);
+    /* 抬腕唤醒：阈值 15(≈15mg)/持续 3ms——对抬腕足够灵敏、又能滤掉瞬时噪声。
+     * 用 SENSOR 页的 INT 计数现场标定：误触发多就调大 thr/dur，抬腕不触发就调小。 */
+    MPU6050_EnableMotionInt(15, 3);
     Encoder_Init();
 
     /* 从 Flash 载入步数历史 */
@@ -165,6 +165,10 @@ static void Task_Sensor(void *arg)
         MPU_Data_t d;
         if (MPU6050_Read(&d) == 0) {
             i2c_fail = 0;
+            /* 读 INT_STATUS 重新“布防”锁存的运动中断：清醒时把锁存的高电平清掉，
+             * 使下一次动作能再产生上升沿（否则锁存高电平后 INT 计数不再增长、
+             * 熄屏进 STOP 时 PA4 也带着高电平进去，抬腕再无新边沿）。 */
+            MPU6050_ReadIntStatus();
             Pedometer_Update(&d, HAL_GetTick());
 
             /* 跨天检测：当天步数清零，累计保留 */
