@@ -82,8 +82,9 @@ STM32CubeIDE 内置 CubeMX）打开即可，省去大半手动点击。
 - Heap：heap_4；TOTAL_HEAP_SIZE 建议 ≥ 8KB
 
 ## 8. 电源 / 低功耗
-- PWR 时钟默认开启；代码中调用 `HAL_PWR_EnterSTOPMode()` 进入 STOP
-- 唤醒后调用 CubeMX 生成的 `SystemClock_Config()` 重配时钟（已在 app_tasks.c 中处理）
+- PWR 时钟默认开启
+- 熄屏策略：仅关闭 OLED 显示（`OLED_DisplayOff`），MCU 保持全速运行，不进入 STOP 模式
+- 抬腕唤醒：MPU6050 运动中断（EXTI4）在熄屏时触发 `mark_activity()`，由 Task_Power 检测后亮屏
 
 ## 9. 生成代码
 - Project Manager → Project → **Toolchain / IDE = CMake**（本项目采用 VSCode + CMake + arm-gcc）
