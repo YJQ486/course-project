@@ -36,6 +36,7 @@ extern UART_HandleTypeDef huart2;        /* CubeMX 生成 */
 volatile uint32_t        g_mpu_int_count;
 static UiData_t          g_ui;
 static SemaphoreHandle_t s_mtx;          /* 保护 g_ui */
+static SemaphoreHandle_t s_flash_mtx;    /* 串行化 Flash 擦写（防并发） */
 static SemaphoreHandle_t s_sem_uart;     /* UART 整行就绪通知 */
 static volatile uint32_t g_last_activity_ms;
 static uint8_t           s_uart_rx;      /* UART 单字节接收缓冲 */
@@ -57,6 +58,14 @@ static void persist_steps(uint8_t force)
     if (!force && total == s_saved_total && today == s_saved_today) {
         return;                          /* 无变化，跳过擦写 */
     }
+    /* Flash 擦写串行化：Task_Sensor(优先级3) 的周期落盘与 Task_Power(优先级4)
+     * 熄屏前的强制落盘可能并发——高优先级任务会抢占正处于"解锁→擦页→编程"
+     * 中途的低优先级任务，两次并发操作未上锁的 Flash 会写失败甚至 HardFault。
+     * 用互斥锁串行化（configUSE_MUTEXES 带优先级继承，无优先级反转风险）。
+     * 锁在 App_CreateTasks() 中创建，早于调度器启动，任务运行时必已就绪。 */
+    if (s_flash_mtx == NULL) return;
+    if (xSemaphoreTake(s_flash_mtx, portMAX_DELAY) != pdTRUE) return;
+
     StepStore_t st = {0};
     st.total_steps = total;
     st.today_steps = today;
@@ -65,13 +74,18 @@ static void persist_steps(uint8_t force)
         s_saved_total = total;
         s_saved_today = today;
     }
+
+    xSemaphoreGive(s_flash_mtx);
 }
 
 /* ====================== 初始化 ====================== */
 void App_Init(void)
 {
     OLED_Init();
-    OLED_ShowString(3, 18, "SmartWatch...");
+    OLED_ClearBuf();
+    OLED_DrawStringEx((uint8_t)((OLED_WIDTH - OLED_StrWidth("SMART", 2)) / 2), 14, "SMART", 2, 0);
+    OLED_DrawStringEx((uint8_t)((OLED_WIDTH - OLED_StrWidth("WATCH", 2)) / 2), 34, "WATCH", 2, 0);
+    OLED_DrawHLine(20, 56, 88);
     OLED_Display();
 
     MPU6050_Init();
@@ -115,16 +129,19 @@ void App_Init(void)
  * 且低功耗电源管理不在课程考核标准内。 */
 static volatile uint8_t s_screen_off = 0;
 
+/* 注意：这里不直接操作 OLED，只置/清 s_screen_off 标志。真正的
+ * OLED_DisplayOff()/On() 由 Task_UI 在检测到标志翻转时执行——这样 OLED 的
+ * 软件 I2C 总线始终只被 Task_UI 一个任务访问，避免 Task_Power(优先级4) 抢占
+ * Task_UI(优先级2) 的 OLED_Display() 事务导致总线时序错乱（与设计文档
+ * "每条总线仅被单一任务访问"的口径一致）。 */
 static void enter_idle(void)
 {
     persist_steps(1);            /* 熄屏前强制落盘，防止断电丢步数 */
-    OLED_DisplayOff();
     s_screen_off = 1;
 }
 
 static void exit_idle(void)
 {
-    OLED_DisplayOn();
     s_screen_off = 0;
     mark_activity();             /* 刷新活动时间，10s 后若再无操作才重新熄屏 */
 }
@@ -201,6 +218,7 @@ static void Task_Sensor(void *arg)
 static void Task_UI(void *arg)
 {
     (void)arg;
+    uint8_t prev_off = 0;
     for (;;) {
         int8_t  delta = Encoder_GetDelta();
         uint8_t key   = Encoder_KeyPressed();
@@ -208,9 +226,17 @@ static void Task_UI(void *arg)
 
         Menu_Handle(delta, key);
 
+        /* 检测熄屏标志翻转，在本任务内完成 OLED 亮/灭（OLED 总线仅此任务访问） */
+        uint8_t off = s_screen_off;
+        if (off != prev_off) {
+            if (off) OLED_DisplayOff();
+            else     OLED_DisplayOn();
+            prev_off = off;
+        }
+
         /* 熄屏时跳过渲染：OLED 已关，软件 I2C 写显存无意义，省 CPU 与总线功耗。
          * 输入仍照常扫描，确保亮屏后第一帧就是最新菜单状态。 */
-        if (!s_screen_off) {
+        if (!off) {
             static UiData_t snap;   /* static：互斥锁取失败时沿用上一帧，避免渲染未初始化数据 */
             if (xSemaphoreTake(s_mtx, pdMS_TO_TICKS(10)) == pdTRUE) {
                 snap = g_ui;
@@ -262,8 +288,9 @@ static void Task_Comm(void *arg)
 /* ====================== 创建 ====================== */
 void App_CreateTasks(void)
 {
-    s_mtx      = xSemaphoreCreateMutex();
-    s_sem_uart = xSemaphoreCreateBinary();
+    s_mtx       = xSemaphoreCreateMutex();
+    s_flash_mtx = xSemaphoreCreateMutex();
+    s_sem_uart  = xSemaphoreCreateBinary();
 
     /* 信号量已就绪，再启动 UART 单字节中断接收（避免竞态） */
     HAL_UART_Receive_IT(&huart2, &s_uart_rx, 1);

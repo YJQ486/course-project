@@ -40,9 +40,10 @@
 #define PED_DYN_WINDOW          50      /* 动态阈值统计窗口（过去 50 点） */
 #define PED_MIN_STEP_INTERVAL   200     /* 相邻有效步最小时间间隔(ms)，防抖动多计 */
 #define PED_MIN_AMPLITUDE       1500    /* 波峰最小幅度门限（原始 LSB），过滤静止噪声 */
+#define PED_DAILY_GOAL          6000    /* 每日步数目标（用于计步页进度条显示） */
 
 /* ===================== 低功耗参数 ===================== */
-#define PWR_IDLE_TIMEOUT_MS     10000   /* 无操作 10s 进入 STOP */
+#define PWR_IDLE_TIMEOUT_MS     10000   /* 无操作 10s 熄屏（仅关 OLED） */
 #define PWR_CHECK_PERIOD_MS     500     /* Task_Power 周期唤醒间隔（非忙等轮询） */
 
 /* ===================== 任务优先级（原生 FreeRTOS 数值，越大越高） ===================== */

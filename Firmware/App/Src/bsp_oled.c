@@ -97,3 +97,75 @@ void OLED_ShowString(uint8_t page, uint8_t col, const char *str)
         if (page >= OLED_PAGES) break;
     }
 }
+
+/* ==================== 图形/大字号绘制 ==================== */
+
+void OLED_DrawPixel(uint8_t x, uint8_t y, uint8_t on)
+{
+    if (x >= OLED_WIDTH || y >= OLED_HEIGHT) return;
+    if (on) s_gram[y >> 3][x] |=  (uint8_t)(1u << (y & 7));
+    else    s_gram[y >> 3][x] &= (uint8_t)~(1u << (y & 7));
+}
+
+void OLED_FillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t on)
+{
+    for (uint8_t j = 0; j < h; j++)
+        for (uint8_t i = 0; i < w; i++)
+            OLED_DrawPixel(x + i, y + j, on);
+}
+
+void OLED_DrawHLine(uint8_t x, uint8_t y, uint8_t w)
+{
+    for (uint8_t i = 0; i < w; i++) OLED_DrawPixel(x + i, y, 1);
+}
+
+void OLED_DrawVLine(uint8_t x, uint8_t y, uint8_t h)
+{
+    for (uint8_t j = 0; j < h; j++) OLED_DrawPixel(x, y + j, 1);
+}
+
+void OLED_DrawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h)
+{
+    if (w == 0 || h == 0) return;
+    OLED_DrawHLine(x, y, w);
+    OLED_DrawHLine(x, y + h - 1, w);
+    OLED_DrawVLine(x, y, h);
+    OLED_DrawVLine(x + w - 1, y, h);
+}
+
+/* 以 scale 倍放大绘制单个 6x8 字符：每个原始像素展开为 scale×scale 方块。
+ * inv=1 时用"熄灭色"绘制笔画（白底黑字），仅在笔画像素处写入，不动背景。 */
+void OLED_DrawCharEx(uint8_t x, uint8_t y, char ch, uint8_t scale, uint8_t inv)
+{
+    if (scale == 0) scale = 1;
+    if (ch < 0x20 || ch > 0x7E) ch = ' ';
+    const uint8_t *glyph = F6x8[ch - 0x20];
+    uint8_t color = inv ? 0 : 1;
+    for (uint8_t col = 0; col < 6; col++) {
+        uint8_t bits = glyph[col];
+        for (uint8_t row = 0; row < 8; row++) {
+            if (bits & (1u << row)) {
+                OLED_FillRect((uint8_t)(x + col * scale),
+                              (uint8_t)(y + row * scale),
+                              scale, scale, color);
+            }
+        }
+    }
+}
+
+void OLED_DrawStringEx(uint8_t x, uint8_t y, const char *str, uint8_t scale, uint8_t inv)
+{
+    if (scale == 0) scale = 1;
+    while (*str) {
+        OLED_DrawCharEx(x, y, *str++, scale, inv);
+        x = (uint8_t)(x + 6 * scale);
+    }
+}
+
+uint8_t OLED_StrWidth(const char *str, uint8_t scale)
+{
+    if (scale == 0) scale = 1;
+    uint8_t n = 0;
+    while (str[n]) n++;
+    return (uint8_t)(n * 6 * scale);
+}

@@ -10,7 +10,7 @@
 
 ## ✨ 功能特性
 ### 基础功能
-- **片内 RTC 精准走时**：复用主控片内 RTC 外设 + 板载 32.768kHz 晶振（LSE）走时，无需外置 RTC 芯片；RTC 位于独立后备域，**休眠（STOP）期间仍持续走时**，唤醒后时间不丢失
+- **片内 RTC 精准走时**：复用主控片内 RTC 外设 + 板载 32.768kHz 晶振（LSE）走时，无需外置 RTC 芯片；RTC 位于独立后备域，**熄屏期间仍持续走时**，亮屏后时间不丢失
 - **多页面显示**：1.3 寸 OLED 屏幕，支持时间页、传感器数据页、计步统计页切换
 - **六轴传感采集**：MPU6050 实时读取加速度与陀螺仪原始数据
 - **多任务调度**：FreeRTOS 抢占式内核，任务间通过消息队列与互斥信号量安全通信
@@ -20,7 +20,7 @@
 1. **旋转编码器交互**：EC11 编码器 + 定时器硬件正交解码，实现多级菜单流畅翻页、参数调整与按键确认
 2. **蓝牙无线同步**：JDY-31 经典蓝牙模块，配合 PC 端图形化上位机，实现运动数据与时间的双向无线同步
 3. **运动计步算法**：基于加速度计的动态阈值 + 波峰检测滤波算法，过滤日常杂散抖动，支持步数统计、历史数据 RAM 缓存与**内部 Flash 掉电持久化**
-4. **低功耗管理**：10s 无操作自动熄屏并进入 STOP 低功耗模式，支持**编码器按键 / MPU6050 抬腕中断（EXTI）唤醒**（STOP 下编码器旋转不参与唤醒）
+4. **熄屏与抬腕唤醒**：10s 无操作自动熄屏（仅关闭 OLED，MCU 保持全速运行，以规避 STM32F1 在 STOP 模式下与传感器 I2C 采样的总线竞争），支持**编码器按键 / MPU6050 抬腕运动中断（EXTI）唤醒**；熄屏期间蓝牙与 RTC 走时均正常工作
 
 ## 🛠️ 硬件清单
 | 模块 | 型号/规格 | 说明 |
@@ -56,19 +56,19 @@
 GitHub 仓库根目录采用模块化拓扑进行组织，具体架构如下：
 
 ```text
-SmartWatch_STM32
-├── Hardware/    # 硬件资料（原理图、BOM清单）
-├── Firmware/    # STM32CubeIDE 固件工程
-│   ├── Core/    # 业务代码与 FreeRTOS 任务
-│   ├── Drivers/ # HAL 库与外设驱动
-│   └── FreeRTOS/# 操作系统内核
-├── Host/        # 蓝牙上位机（Python）
-├── Docs/        # 课程交付文档
+course-project
+├── Firmware/    # STM32 固件工程（VSCode + CMake + arm-none-eabi-gcc）
+│   ├── App/     # 应用层：驱动封装、FreeRTOS 任务、计步算法、菜单、协议
+│   ├── Core/    # CubeMX 生成的外设初始化与 FreeRTOS 集成
+│   ├── Drivers/ # STM32 HAL 库与 CMSIS
+│   └── SmartWatch.ioc  # CubeMX 工程文件
+├── Host/        # 蓝牙上位机（Python / PyQt5）
+├── Docs/        # 课程交付文档（计划书 / 设计文档 / 中期报告 / 故障排查）
 └── README.md
 ```
 ## 🚀 快速开始
 ### 1. 硬件搭建
-参考 `Hardware/Schematic/` 目录下的原理图，在面包板上完成所有模块的接线，确认电源正负极无误后再上电测试。
+参考 [`Docs/系统设计文档.md`](Docs/系统设计文档.md) 中的硬件框图与引脚分配（引脚常量集中定义于 [`Firmware/App/Inc/app_config.h`](Firmware/App/Inc/app_config.h)），在面包板上完成所有模块的接线，确认电源正负极无误后再上电测试。
 
 ### 2. 固件编译与烧录
 - 工具链：**VSCode + CMake + Ninja + arm-none-eabi-gcc**（工程已随仓库提供 `CMakePresets.json` 与工具链文件 `Firmware/cmake/gcc-arm-none-eabi.cmake`）
@@ -78,7 +78,7 @@ SmartWatch_STM32
   cmake --preset Debug
   cmake --build --preset Debug
   ```
-  生成的固件为 `Firmware/build/Debug/SmartWatch.elf`
+  生成的固件为 `Firmware/build/SmartWatch.elf`（或对应 preset 的输出目录）
 - 通过 ST-Link 调试器将 `.elf` 烧录至 STM32F103C8T6 最小系统板
 
 ### 3. 上位机使用
